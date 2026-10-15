@@ -141,6 +141,25 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 #qExplain{font-size:.82rem;color:var(--muted);line-height:1.45;margin-top:.35rem;min-height:1.2em;font-style:italic}
 #qCardHint{font-size:.68rem;color:var(--gold-dim);letter-spacing:.1em;text-transform:uppercase;margin-top:.8rem;text-align:right}
 
+/* ---------- LOG (materi) modal ---------- */
+#logBtn{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold-dim);padding:.35rem .7rem;border-radius:5px;background:#1b3023}
+#logBtn:hover{border-color:var(--gold);box-shadow:0 0 10px rgba(216,179,74,.25)}
+#logPanel{width:min(640px,94vw);max-height:86vh;display:flex;flex-direction:column;background:linear-gradient(#20372a,#172a1e);border:1px solid var(--gold-dim);border-radius:12px;box-shadow:0 26px 70px rgba(0,0,0,.7)}
+#logHead{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.3rem .7rem;border-bottom:1px solid rgba(216,179,74,.2)}
+#logHead h3{color:var(--gold);letter-spacing:.06em;font-size:1.15rem}
+#logClose{color:var(--muted);font-size:1.1rem;padding:.3rem .55rem;border-radius:5px}
+#logClose:hover{color:var(--gold);border:1px solid var(--gold-dim)}
+#logBody{overflow-y:auto;padding:1rem 1.3rem;flex:1}
+.logItem{padding:.85rem 0;border-bottom:1px dashed rgba(216,179,74,.15)}
+.logItem:last-child{border-bottom:none}
+.logItem .lq{font-family:Georgia,serif;font-size:.98rem;line-height:1.4;color:var(--text);margin-bottom:.4rem}
+.logItem .lc{display:inline-block;font-family:Georgia,serif;font-size:.72rem;color:var(--gold);border:1px solid var(--gold-dim);border-radius:4px;padding:.05rem .4rem;margin-right:.45rem}
+.logItem .lc.red{color:#e88;border-color:#855}
+.logItem .la{font-size:.82rem;margin-bottom:.3rem;line-height:1.45}
+.logItem .ok{color:#7dd87d}.logItem .no{color:var(--danger)}
+.logItem .le{font-size:.82rem;color:var(--muted);line-height:1.5;margin-top:.35rem}
+.logEmpty{color:var(--muted);font-size:.86rem;text-align:center;padding:2rem 1rem;font-style:italic}
+
 /* ---------- END OVERLAY ---------- */
 #endModal{z-index:80}
 #endPanel{width:min(460px,92vw);text-align:center;background:linear-gradient(#20372a,#172a1e);
@@ -179,7 +198,10 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 <!-- ================= ARENA ================= -->
 <div id="arena" class="hidden">
   <div id="topBar">
-    <button id="backMap">← Peta</button>
+    <div style="display:flex;gap:.6rem">
+      <button id="backMap">← Peta</button>
+      <button id="logBtn">📖 Materi (<span id="logCount">0</span>)</button>
+    </div>
     <div id="comboTag"></div>
   </div>
   <div id="bossZone">
@@ -213,7 +235,19 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   </div>
 </div>
 
+<!-- ================= LOG MODAL ================= -->
+<div id="logModal" class="overlay hidden">
+  <div id="logPanel">
+    <div id="logHead">
+      <h3 class="serif" id="logTitle">📖 Materi Bos Ini</h3>
+      <button id="logClose" aria-label="Tutup">✕</button>
+    </div>
+    <div id="logBody"></div>
+  </div>
+</div>
+
 <!-- ================= END MODAL ================= -->
+
 <div id="endModal" class="overlay hidden">
   <div id="endPanel">
     <div id="endTitle"></div>
@@ -377,7 +411,7 @@ $("#resetBtn").addEventListener("click",()=>{
    ========================================================= */
 function startBoss(i){
   const b=BOSSES[i];
-  G={boss:i,bossName:b.name,bossHp:b.hp,bossMax:b.hp,playerHp:60,playerMax:60,combo:0,maxCombo:0,used:0,total:b.cards.length,busy:false};
+  G={boss:i,bossName:b.name,bossHp:b.hp,bossMax:b.hp,playerHp:60,playerMax:60,combo:0,maxCombo:0,used:0,total:b.cards.length,busy:false,log:[]};
   buildDeck();
   refillHand();
   $("#map").classList.add("hidden");
@@ -449,6 +483,7 @@ function answer(i,btn){
   const c=curCard;
   opts_lock();
   const right=i===c.c;
+  G.lastChoice=i;G.lastRight=right;
   const opts=[...$("#qOpts").children];
   opts.forEach((b,bi)=>b.classList.toggle("correct",bi===c.c));
   if(!right)btn.classList.add("wrong");
@@ -462,6 +497,10 @@ function answer(i,btn){
 function opts_lock(){[...$("#qOpts").children].forEach(b=>b.disabled=true);}
 
 function afterResolve(){
+  // arsipkan kartu yang dipakai ke log materi
+  G.log.push({q:curCard.q,a:curCard.a,c:curCard.c,e:curCard.e,
+    chose:G.lastChoice,right:G.lastRight,s:curCard.s,su:curCard.su});
+  $("#logCount").textContent=G.log.length;
   // discard used card, draw next
   const idx=G.hand.indexOf(curCard);
   if(idx>=0)G.hand.splice(idx,1);
@@ -518,6 +557,61 @@ function bossFinishHint(on){
   if(on){t.textContent="⚔ BOSS TERSUNGKUR — HABISKAN SEMUA KARTU!";t.style.color="var(--danger)";}
   else{t.textContent=BOSSES[G.boss].theme;t.style.color="";}
 }
+/* ---------- LOG materi ---------- */
+function openLog(){
+  if(!G)return;
+  $("#logTitle").textContent="📖 Materi — "+BOSSES[G.boss].name;
+  const body=$("#logBody");body.innerHTML="";
+  if(!G.log.length){
+    const e=document.createElement("div");
+    e.className="logEmpty";
+    e.textContent="Belum ada kartu yang dipakai. Serang duluan, lalu baca lagi materinya di sini.";
+    body.appendChild(e);
+  }else{
+    G.log.forEach((it,n)=>{
+      const d=document.createElement("div");
+      d.className="logItem";
+      const chip=document.createElement("span");
+      chip.className="lc"+((it.su==="♥"||it.su==="♦")?" red":"");
+      chip.textContent=it.s+it.su;
+      const q=document.createElement("div");
+      q.className="lq";
+      q.appendChild(chip);
+      q.appendChild(document.createTextNode((n+1)+". "+it.q));
+      d.appendChild(q);
+      const la=document.createElement("div");
+      la.className="la";
+      if(it.right){
+        la.innerHTML='<span class="ok">✓ Benar — </span>';
+      }else{
+        la.innerHTML='<span class="no">✗ Salah (pilihanmu: '+String.fromCharCode(65+it.chose)+'. '+
+          escapeHtml(it.a[it.chose])+') — </span>';
+      }
+      const b=document.createElement("b");
+      b.textContent="Jawaban: "+String.fromCharCode(65+it.c)+". "+it.a[it.c];
+      la.appendChild(b);
+      d.appendChild(la);
+      const ex=document.createElement("div");
+      ex.className="le";ex.textContent=it.e;
+      d.appendChild(ex);
+      body.appendChild(d);
+    });
+    body.scrollTop=0;
+  }
+  $("#logModal").classList.remove("hidden");
+  G.busy=true; // pause battle while reading
+}
+function closeLog(){
+  $("#logModal").classList.add("hidden");
+  if(G)G.busy=false; // resume battle (outcome check sudah jalan saat kartu dijawab)
+}
+function escapeHtml(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+$("#logBtn").addEventListener("click",openLog);
+$("#logClose").addEventListener("click",closeLog);
+$("#logModal").addEventListener("click",e=>{if(e.target.id==="logModal")closeLog();});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&!$("#logModal").classList.contains("hidden"))closeLog();
+});
 function flyCard(el,dmg,done){
   if(!el||reduceMotion||!el.getBoundingClientRect){el&&el.remove&&0;done();return;}
   const r=el.getBoundingClientRect();
