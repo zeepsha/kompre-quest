@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOMPRE QUEST — Kartu Ujian Kompre PS</title>
+<style>
+:root{
+  --felt-hi:#2e7d51; --felt-lo:#123a26; --edge:#0a1f14;
+  --ink:#16130d; --paper:#f7f3e8; --gold:#d8b34a; --gold-dim:#8f7a35;
+  --red:#c0392b; --danger:#e74c3c; --hp:#3fbf5a; --hp-lo:#c0392b;
+  --text:#efe9d6; --muted:#9aa98f;
+  font-size:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(120% 90% at 50% 30%, var(--felt-hi) 0%, var(--felt-lo) 58%, var(--edge) 100%);
+  color:var(--text);
+  font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+  overflow:hidden;
+  user-select:none;
+}
+h1,h2,h3,.serif{font-family:Georgia,"Times New Roman",serif}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+/* ---------- shared ---------- */
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,18,11,.82);backdrop-filter:blur(3px);z-index:50}
+.hidden{display:none!important}
+.btn{
+  display:inline-block;padding:.72rem 1.6rem;border:1px solid var(--gold-dim);border-radius:6px;
+  background:linear-gradient(#233a2b,#182b1f);color:var(--gold);letter-spacing:.06em;
+  font-family:Georgia,serif;font-size:1rem;text-transform:uppercase;
+  transition:transform .12s ease,box-shadow .12s ease,border-color .12s;
+}
+.btn:hover,.btn:focus-visible{transform:translateY(-2px);border-color:var(--gold);
+  box-shadow:0 6px 18px rgba(0,0,0,.4);outline:none}
+.btn:active{transform:translateY(0)}
+
+/* ---------- MAP ---------- */
+#map{flex-direction:column;gap:1.2rem;background:
+  radial-gradient(120% 90% at 50% 20%, #1d4b32 0%, var(--felt-lo) 55%, var(--edge) 100%)}
+#map .title{font-size:2.1rem;letter-spacing:.14em;color:var(--gold);text-transform:uppercase}
+#map .subtitle{color:var(--muted);font-size:.85rem;letter-spacing:.12em;text-transform:uppercase}
+#bossGrid{display:grid;grid-template-columns:repeat(4,minmax(150px,190px));gap:.8rem;max-width:860px;padding:0 1rem}
+.bossNode{
+  position:relative;text-align:left;padding:.85rem .9rem;border-radius:8px;min-height:118px;
+  border:1px solid rgba(216,179,74,.25);background:linear-gradient(#1c3527,#152a1e);
+  transition:transform .15s,border-color .15s,box-shadow .15s;display:flex;flex-direction:column;gap:.25rem;
+}
+.bossNode:hover:not(.locked){transform:translateY(-4px);border-color:var(--gold);box-shadow:0 10px 24px rgba(0,0,0,.45)}
+.bossNode .num{font-family:Georgia,serif;color:var(--gold-dim);font-size:.78rem;letter-spacing:.14em}
+.bossNode .bname{font-family:Georgia,serif;font-size:1.06rem;color:var(--text);line-height:1.15}
+.bossNode .theme{font-size:.72rem;color:var(--muted);line-height:1.3}
+.bossNode .stat{margin-top:auto;font-size:.7rem;color:var(--gold-dim);letter-spacing:.04em}
+.bossNode.locked{opacity:.45;cursor:not-allowed;filter:grayscale(.6)}
+.bossNode.cleared .bname::after{content:" ✝";color:var(--hp)}
+.bossNode.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 8px 26px rgba(0,0,0,.5)}
+#mapStats{display:flex;gap:2rem;color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
+#mapStats b{color:var(--gold)}
+#resetBtn{font-size:.72rem;color:var(--muted);text-decoration:underline dotted;margin-top:.4rem}
+
+/* ---------- ARENA ---------- */
+#arena{position:fixed;inset:0;display:flex;flex-direction:column;padding:.8rem 1.1rem}
+#topBar{display:flex;justify-content:space-between;align-items:flex-start}
+#backMap{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid rgba(154,169,143,.3);padding:.35rem .7rem;border-radius:5px}
+#backMap:hover{color:var(--gold);border-color:var(--gold-dim)}
+#comboTag{font-family:Georgia,serif;font-size:1.05rem;color:var(--gold);letter-spacing:.06em;opacity:0;transition:opacity .2s;text-align:right}
+#comboTag.on{opacity:1}
+
+/* boss */
+#bossZone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;position:relative;min-height:0}
+#bossPlate{text-align:center;transition:transform .1s}
+#bossPlate .bname{font-family:Georgia,serif;font-size:clamp(1.5rem,4vw,2.4rem);color:var(--gold);letter-spacing:.1em;text-transform:uppercase;text-shadow:0 3px 14px rgba(0,0,0,.6)}
+#bossPlate .theme{font-size:.8rem;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;margin-top:.15rem}
+.hpbar{width:min(420px,72vw);height:16px;border-radius:8px;background:#0c2417;border:1px solid rgba(216,179,74,.35);overflow:hidden;position:relative}
+.hpbar .fill{height:100%;width:100%;background:linear-gradient(90deg,var(--hp-lo),#e67e22,var(--hp));
+  transition:width .35s ease;border-radius:8px}
+.hpbar .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:.66rem;font-weight:700;letter-spacing:.08em;color:#fff;text-shadow:0 1px 3px #000}
+#bossIcon{font-size:clamp(2.2rem,6vw,3.6rem);color:var(--gold);filter:drop-shadow(0 4px 10px rgba(0,0,0,.6));
+  font-family:Georgia,serif}
+.shake{animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+
+/* table bottom */
+#tableRow{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding-bottom:.2rem}
+#playerPanel{min-width:190px}
+#playerPanel .plabel{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem}
+#deckChip{text-align:center;min-width:110px;font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+#deckChip .dcount{font-family:Georgia,serif;font-size:1.7rem;color:var(--gold);display:block;line-height:1.1}
+#handWrap{display:flex;justify-content:center;flex:1;padding-top:20px}
+
+/* cards */
+.card{
+  position:relative;width:104px;height:150px;border-radius:9px;background:var(--paper);
+  border:1px solid #c9bfa4;box-shadow:0 6px 14px rgba(0,0,0,.5),inset 0 0 0 2px #fff;
+  cursor:pointer;transition:transform .16s ease,box-shadow .16s ease;
+  flex:0 0 auto;margin-left:-22px;
+}
+.card:first-child{margin-left:0}
+.card:hover,.card:focus-visible{transform:translateY(-20px) rotate(-1deg) scale(1.06);box-shadow:0 18px 34px rgba(0,0,0,.6);outline:none;z-index:5}
+.card .corner{position:absolute;font-family:Georgia,serif;font-weight:700;line-height:.95;display:flex;flex-direction:column;align-items:center}
+.card .tl{top:7px;left:8px}
+.card .br{bottom:7px;right:8px;transform:rotate(180deg)}
+.card .corner .r{font-size:1.15rem}
+.card .corner .s{font-size:.9rem}
+.card .pip{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.7rem}
+.card .dmg{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:.6rem;letter-spacing:.1em;color:#7c6f4e;text-transform:uppercase}
+.card.red{color:var(--red)}.card.black{color:var(--ink)}
+
+/* flying card + popups */
+.flyer{position:fixed;z-index:60;pointer-events:none}
+.pop{
+  position:absolute;z-index:61;font-family:Georgia,serif;font-weight:700;
+  font-size:2.1rem;color:var(--gold);text-shadow:0 2px 8px #000,0 0 18px rgba(216,179,74,.5);
+  pointer-events:none;animation:floatUp .95s ease-out forwards;
+}
+.pop.dmg-hurt{color:var(--danger);text-shadow:0 2px 8px #000,0 0 18px rgba(231,76,60,.5)}
+@keyframes floatUp{0%{opacity:0;transform:translateY(6px) scale(.7)}15%{opacity:1;transform:translateY(0) scale(1.15)}30%{transform:translateY(-4px) scale(1)}100%{opacity:0;transform:translateY(-58px) scale(.95)}}
+#hurtFlash{position:fixed;inset:0;pointer-events:none;z-index:55;background:radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(192,57,43,.55) 100%);opacity:0;transition:opacity .25s}
+#hurtFlash.on{opacity:1}
+
+/* ---------- MODAL QUESTION ---------- */
+#qModal{z-index:70}
+#qPanel{width:min(560px,92vw);background:linear-gradient(#20372a,#172a1e);border:1px solid var(--gold-dim);
+  border-radius:12px;padding:1.5rem 1.6rem;box-shadow:0 26px 70px rgba(0,0,0,.7)}
+#qTheme{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:.55rem}
+#qText{font-family:Georgia,serif;font-size:1.22rem;line-height:1.4;color:var(--text);margin-bottom:1.1rem}
+.opt{
+  display:block;width:100%;text-align:left;padding:.72rem .9rem;margin-bottom:.5rem;border-radius:7px;
+  border:1px solid rgba(216,179,74,.25);background:#1b3023;font-size:.92rem;line-height:1.35;
+  transition:transform .1s,border-color .1s,background .15s;min-height:44px;
+}
+.opt:hover:not(:disabled){transform:translateX(4px);border-color:var(--gold)}
+.opt:disabled{cursor:default;opacity:.9}
+.opt.correct{background:#225a2f;border-color:var(--hp)}
+.opt.wrong{background:#5c2018;border-color:var(--danger)}
+#qExplain{font-size:.82rem;color:var(--muted);line-height:1.45;margin-top:.35rem;min-height:1.2em;font-style:italic}
+#qCardHint{font-size:.68rem;color:var(--gold-dim);letter-spacing:.1em;text-transform:uppercase;margin-top:.8rem;text-align:right}
+
+/* ---------- END OVERLAY ---------- */
+#endModal{z-index:80}
+#endPanel{width:min(460px,92vw);text-align:center;background:linear-gradient(#20372a,#172a1e);
+  border:1px solid var(--gold-dim);border-radius:12px;padding:2rem 1.8rem;box-shadow:0 26px 70px rgba(0,0,0,.7)}
+#endTitle{font-family:Georgia,serif;font-size:1.9rem;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.6rem}
+#endPanel.lose #endTitle{color:var(--danger)}
+#endBody{color:var(--muted);font-size:.9rem;line-height:1.5;margin-bottom:1.2rem}
+#endBody b{color:var(--text)}
+
+@media (max-width:720px){
+  #bossGrid{grid-template-columns:repeat(2,1fr)}
+  .card{width:84px;height:124px;margin-left:-16px}
+  .card .pip{font-size:2rem}
+  .card .theme{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= MAP ================= -->
+<div id="map" class="overlay">
+  <div class="title serif">Kompre Quest</div>
+  <div class="subtitle">Panduan Materi Ujian Komprehensif — S1 Perbankan Syariah</div>
+  <div id="bossGrid"></div>
+  <div id="mapStats">
+    <span>Bos ditaklukkan <b id="statWins">0/8</b></span>
+    <span>Combo terbaik <b id="statCombo">×0</b></span>
+    <span>Total kartu dijawab <b id="statCards">0</b></span>
+  </div>
+  <button id="resetBtn">reset progres</button>
+</div>
+
+<!-- ================= ARENA ================= -->
+<div id="arena" class="hidden">
+  <div id="topBar">
+    <button id="backMap">← Peta</button>
+    <div id="comboTag"></div>
+  </div>
+  <div id="bossZone">
+    <div id="bossIcon">♛</div>
+    <div id="bossPlate">
+      <div class="bname" id="bossName"></div>
+      <div class="theme" id="bossTheme"></div>
+    </div>
+    <div class="hpbar"><div class="fill" id="bossFill"></div><div class="lbl" id="bossLbl"></div></div>
+    <div id="deckChip"><span class="dcount" id="deckCount">0</span>deck</div>
+  </div>
+  <div id="tableRow">
+    <div id="playerPanel">
+      <div class="plabel">Nyawa Kamu</div>
+      <div class="hpbar" style="height:14px"><div class="fill" id="playerFill"></div><div class="lbl" id="playerLbl"></div></div>
+    </div>
+    <div id="handWrap"></div>
+    <div style="min-width:110px"></div>
+  </div>
+</div>
+
+<!-- ================= QUESTION MODAL ================= -->
+<div id="qModal" class="overlay hidden">
+  <div id="qPanel">
+    <div id="qTheme"></div>
+    <div id="qText"></div>
+    <div id="qOpts"></div>
+    <div id="qExplain"></div>
+    <div id="qCardHint"></div>
+  </div>
+</div>
+
+<!-- ================= END MODAL ================= -->
+<div id="endModal" class="overlay hidden">
+  <div id="endPanel">
+    <div id="endTitle"></div>
+    <div id="endBody"></div>
+    <button class="btn" id="endBtn"></button>
+  </div>
+</div>
+
+<div id="hurtFlash"></div>
+
+<script>
+"use strict";
+/* =========================================================
+   DATA — soal PG yang dikoin dari PDF Panduan Materi Ukom PS.
+   r = rank kartu (damage), s = suit, x = penjelasan singkat.
+   ========================================================= */
+const RANKVAL={"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"10":10,"J":11,"Q":12,"K":13,"A":14};
+const BOSSES=[
+{name:"Riba Rex",icon:"☥",theme:"Materi I-A · Ayat & Hadis Ekonomi",hp:65,cards:[
+{s:"3",su:"♦",q:"Riba secara bahasa (etimologi) dari kata 'ziyadah' yang berarti…",a:["Pengurangan","Tambahan","Cukai","Pinjaman"],c:1,e:"Riba = ziyadah (tambahan). Secara istilah: tambahan yang diambil dari harta pokok secara batil."},
+{s:"4",su:"♥",q:"Tahap PERTAMA pelarangan riba — masih berupa celaan lembut — terdapat dalam QS…",a:["Ar-Rum: 39","Al-Baqarah: 275","Ali 'Imran: 130","An-Nisa': 161"],c:0,e:"Urutan turun: Ar-Rum 39 → An-Nisa 160-161 → Ali Imran 130 → Al-Baqarah 275 (pengharaman total)."},
+{s:"5",su:"♠",q:"QS Ali 'Imran: 130 melarang memakan riba yang bersifat…",a:["Berlipat ganda","Dalam jumlah kecil","Sesekali saja","Hanya antar-kerabat"],c:0,e:"'…janganlah kamu memakan riba dengan berlipat ganda (adha'fan muda'afah)…'"},
+{s:"5",su:"♦",q:"Selain Islam, agama samawi yang juga mengharamkan riba adalah…",a:["Kristen dan Yahudi","Hindu dan Buddha","Majusi dan Shabi'ah","Konfusianisme"],c:0,e:"Perjanjian Lama melarang transaksi ribawi — Exodus 22:25 dan Deuteronomy 23:19."},
+{s:"6",su:"♣",q:"Dalil 'Allah telah menghalalkan jual-beli dan mengharamkan riba' terdapat dalam…",a:["QS Al-Baqarah: 275","QS Ar-Rum: 39","QS Al-Maidah: 90","QS An-Nur: 35"],c:0,e:"Al-Baqarah 275 adalah puncak tahap pengharaman riba secara total."},
+{s:"7",su:"♥",q:"Akad mudharabah adalah kerja sama antara…",a:["Pemilik modal (shahibul mal) dan pengelola (mudharib)","Dua pihak yang saling menukar barang","Penyewa dan pemilik jasa","Pemberi pinjaman dan peminjam berbunga"],c:0,e:"Mudharabah: bagi hasil antara pemilik dana dan pengelola usaha."},
+{s:"8",su:"♠",q:"Ciri utama akad musyarakah adalah…",a:["Setiap pihak menyertakan modal & menanggung untung-rugi bersama","Hanya satu pihak yang setor modal","Barang diserahkan di kemudian hari","Objeknya adalah manfaat/jasa"],c:0,e:"Musyarakah = perkongsian modal; keuntungan dibagi sesuai kesepakatan, kerugian sesuai porsi modal."},
+{s:"9",su:"♦",q:"Ijarah dalam fiqh muamalah adalah akad…",a:["Sewa-menyewa barang/jasa dengan imbalan (ujrah)","Pinjaman kebajikan","Penitipan barang","Gadai utang"],c:0,e:"Ijarah memindahkan MANFAAT barang, bukan kepemilikan barangnya."},
+{s:"10",su:"♣",q:"Akad rahn berkaitan dengan…",a:["Jaminan/gadai atas utang","Perjanjian bagi hasil","Asuransi syariah","Sertifikat deposito"],c:0,e:"Rahn = menjadikan barang sebagai jaminan utang agar kepercayaan meningkat."},
+{s:"J",su:"♥",q:"Urutan tahapan turunnya ayat riba yang benar adalah…",a:["Ar-Rum 39 → An-Nisa 160-161 → Ali 'Imran 130 → Al-Baqarah 275","Al-Baqarah 275 → Ar-Rum 39 → Ali 'Imran 130 → An-Nisa 161","Ali 'Imran 130 → Al-Baqarah 275 → Ar-Rum 39 → An-Nisa 161","An-Nisa 161 → Ar-Rum 39 → Al-Baqarah 275 → Ali 'Imran 130"],c:0,e:"Pembelajaran bertahap: dicela → ditunjukkan kezalimannya → dilarang berlipat ganda → diharamkan total."}
+]},
+{name:"Al-Gharar",icon:"☾",theme:"Materi I-B · Ekonomi Islam",hp:75,cards:[
+{s:"3",su:"♦",q:"Berikut BUKAN transaksi yang dilarang dalam ekonomi Islam…",a:["Riba","Gharar","Murabahah","Ihtikar"],c:2,e:"Murabahah justru akad jual-beli yang dibolehkan — harga pokok + margin disepakati di awal."},
+{s:"4",su:"♠",q:"Gharar secara makna adalah…",a:["Ketidakjelasan/penipuan dalam transaksi","Tambahan atas pokok","Titipan dana","Potongan harga"],c:0,e:"Gharar = samparan/ketidakjelasan yang menipu salah satu pihak; dilarang karena menyerupai judi."},
+{s:"5",su:"♥",q:"Yang termasuk 5 unsur Maqashidus Syariah adalah memelihara…",a:["Jabatan","Agama","Popularitas","Modal politik"],c:1,e:"5 unsur: memelihara agama, jiwa, akal, keturunan, dan harta."},
+{s:"6",su:"♣",q:"Dalam sistem keuangan Islam, uang dipandang sebagai…",a:["Stok yang mendatangkan bunga dengan sendiriannya","Sesuatu yang harus diputar (flow concept) & milik publik","Komoditas yang diperjualbelikan","Harta karun yang layak ditimbun"],c:1,e:"Flow concept: uang harus berputar di sektor riil; money as public goods: uang alat tukar, bukan komoditas."},
+{s:"7",su:"♦",q:"'The time value of money' adalah konsep konvensional yang berarti…",a:["Nilai uang bertambah semata karena waktu, diwujudkan dalam bunga","Uang harus diinvestasikan ke sektor riil","Harga barang naik tiap tahun","Inflasi menguntungkan penabung"],c:0,e:"Sistem syariah menolak uang 'melahirkan uang' tanpa usaha riil — yang ada adalah bagi hasil atas usaha."},
+{s:"8",su:"♥",q:"Ihtikar dilarang dalam ekonomi Islam karena…",a:["Menimbun barang agar harga naik & merugikan publik","Mengurangi kualitas barang","Menaikkan biaya produksi","Memberi diskon berlebihan"],c:0,e:"Ihtikar = penimbunan barang saat masyarakat butuh, untuk mengerek harga."},
+{s:"9",su:"♠",q:"Talaqqi al-rukban artinya…",a:["Membeli barang curian","Mencegat kafilah dagang sebelum masuk pasar untuk bermain harga","Menukar barang sejenis beda takaran","Menunda pembayaran utang"],c:1,e:"Praktik mencegat pedagang di luar pasar agar tahu harga lalu mendikte — dilarang."},
+{s:"J",su:"♦",q:"Bai' an-najsy termasuk dilarang karena…",a:["Menawar tinggi palsu untuk memancing orang lain membeli","Mengandung bunga riba","Objeknya barang haram","Tanpa akad tertulis"],c:0,e:"Najsy = lelang semu; harga dinaikkan pura-pura agar pembeli lain terpancing."},
+{s:"Q",su:"♣",q:"Suap (risywah) diharamkan karena termasuk memakan harta dengan cara…",a:["Batil","Berniaga","Hibah","Waris"],c:0,e:"Termasuk transaksi terlarang: penipuan, suap, riba, gharar, perjudian."},
+{s:"K",su:"♥",q:"Konsep 'money as public goods' berarti uang…",a:["Beredar sebagai alat tukar & unit hitung, bukan ditimbun","Harus diproduksi oleh bank","Adalah komoditas bebas","Tidak butuh regulasi negara"],c:0,e:"Uang milik publik — ditimbun = mematikan fungsi sirkulasi dan merugikan orang banyak."}
+]},
+{name:"Taharah Titan",icon:"✦",theme:"Materi I-C · Fiqh Ibadah",hp:90,cards:[
+{s:"4",su:"♠",q:"Sholat sunnah dua rakaat yang dikerjakan setelah berwudu disebut…",a:["Sholat hajat","Sholat wudhu","Sholat tasbih","Sholat mutlaq"],c:1,e:"Sholat wudhu: sunnah dua rakaat seusai berwudu."},
+{s:"5",su:"♠",q:"Sholat tahiyatul masjid dikerjakan ketika…",a:["Keluar masjid","Masuk masjid","Sebelum adzan pertama","Saat gerhana"],c:1,e:"Dua rakaat penghormatan sebelum duduk ketika memasuki masjid."},
+{s:"6",su:"♥",q:"Sholat tarawih dikerjakan setelah…",a:["Subuh","Dzuhur","Isya di bulan Ramadhan","Maghrib"],c:2,e:"Tarawih: sunnah sesudah isya khusus Ramadhan."},
+{s:"7",su:"♦",q:"Nishab zakat emas yang wajib dikeluarkan zakatnya adalah…",a:["85 gram","50 gram","100 gram","4,25 gram"],c:0,e:"20 misqal/dinar × 4,25 gram = 85 gram."},
+{s:"8",su:"♦",q:"Kadar zakat emas dan perak adalah…",a:["2,5% (1/40)","5%","10%","20%"],c:0,e:"Seperempat puluh (2,5%) bila telah capai nishab dan haul."},
+{s:"9",su:"♠",q:"Sholat sunnah sebelum dan sesudah sholat fardhu disebut sholat…",a:["Rawatib","Duha","Istikharah","Witir"],c:0,e:"Rawatib qabliyah (sebelum) dan ba'diyah (sesudah); yang muakkad sangat dianjurkan."},
+{s:"9",su:"♥",q:"Sholat witir dikerjakan dengan jumlah rakaat…",a:["Genap","Ganjil","Selalu 4","Minimal 8"],c:1,e:"Witir = ganjil (1/3/5…), penutup sholat malam, sunnah muakkad."},
+{s:"10",su:"♣",q:"Ibadah haji wajib bagi muslim yang…",a:["Kaya raya","Mampu (istitha'ah)","Sudah menikah","Berpengalaman umroh"],c:1,e:"Istitha'ah: mampu secara fisik, dana, dan keamanan perjalanan."},
+{s:"10",su:"♦",q:"'Haul' dalam syarat wajib zakat berarti…",a:["Capai batas minimum harta","Kepemilikan selama satu tahun","Berasal dari usaha halal","Disimpan di lembaga keuangan"],c:1,e:"Haul = harta kepemilikan penuh selama satu (hijriah) tahun; nishab = batas minimum."},
+{s:"J",su:"♥",q:"Puasa (shiyam) secara bahasa bermakna…",a:["Imsak — menahan diri","Makan sedikit","Menyucikan jiwa","Berdiam total 24 jam"],c:0,e:"Secara bahasa: imsak (menahan). Istilah: menahan dari hal yang membatalkan sejak terbit fajar hingga maghrib dengan niat."},
+{s:"Q",su:"♦",q:"Nishab perak untuk wajib zakat setara…",a:["595 gram (200 dirham)","85 gram","20 dirham","297,5 gram"],c:0,e:"200 dirham × 2,975 gram = 595 gram."},
+{s:"K",su:"♠",q:"Sholat istisqa' adalah sholat sunnah untuk…",a:["Meminta hujan","Meminta jodoh","Memohon petunjuk keputusan","Menolak bencana gempa"],c:0,e:"Istisqa' = meminta diturunkan hujan saat kemarau."},
+{s:"A",su:"♠",q:"Sholat khusuf dikerjakan ketika terjadi…",a:["Gerhana bulan","Hujan badai","Kebakaran besar","Gerhana matahari"],c:0,e:"Khusuf = gerhana bulan; kusuf = gerhana matahari."}
+]},
+{name:"Akad Archon",icon:"⚖",theme:"Materi III-D/E · Akad & Produk",hp:100,cards:[
+{s:"5",su:"♥",q:"Murabahah adalah akad…",a:["Jual-beli dengan menegaskan harga pokok + keuntungan yang disepakati","Sewa barang dengan ujrah","Pinjaman tanpa tambahan","Titipan yang dijamin"],c:0,e:"Fatwa DSN-MUI No. 04/2000 & UU 21/2008: menjual barang dengan menegaskan harga beli dan margin disepakati."},
+{s:"7",su:"♠",q:"Dalam murabahah, margin keuntungan harus…",a:["Ditetapkan di awal & tidak berubah selama masa pembiayaan","Diubah bank tiap kuartal","Mengikuti suku bunga pasar","Dibebaskan di cicilan terakhir"],c:0,e:"Margin jelas di awal akad untuk menghilangkan gharar."},
+{s:"8",su:"♦",q:"Akad salam: pembayaran dilakukan…",a:["Tunai di muka, barang diserahkan kemudian","Cicilan, barang di muka","Setengah-setengah","Hanya saat barang tiba"],c:0,e:"Salam = jual-beli dengan harga lunas di awal dan penyerahan barang ditangguhkan (umumnya hasil pertanian)."},
+{s:"9",su:"♣",q:"Istishna' berbeda dari salam karena objeknya…",a:["Barang manufaktur/pesanan dengan cara pembayaran sesuai kesepakatan","Hasil pertanian","Logam mulia","Jasa"],c:0,e:"Istishna' = jual-beli produk manufaktur, barang & waktu penyerahan disyaratkan jelas."},
+{s:"10",su:"♦",q:"Penghimpunan dana (funding) di bank syariah umumnya memakai akad…",a:["Wadi'ah dan mudharabah","Murabahah dan salam","Ijarah dan rahn","Qardh dan kafalah"],c:0,e:"Giro & tabungan: wadi'ah; deposito: mudharabah. Pembiayaan: murabahah/mudharabah/musyarakah."},
+{s:"J",su:"♥",q:"Wadi'ah yad dhamanah berarti…",a:["Titipan yang dijamin keamanannya & boleh dimanfaatkan bank","Titipan murni tak boleh disentuh","Sewa menyewa gudang","Pinjaman berimbalan tetap"],c:0,e:"Dipakai pada giro & tabungan wadi'ah — bank menjamin dan boleh memanfaatkan dana."},
+{s:"Q",su:"♠",q:"Dalam mudharabah, kerugian finansial (xasis) ditanggung…",a:["Mudharib","Shahibul mal (pemilik dana)","Dibagi rata dua pihak","Negara"],c:1,e:"Pemilik dana menanggung rugi uang; pengelola rugi tenaga/waktu dan tidak mendapat bagi hasil — selama bukan kelalaian pengelola."},
+{s:"K",su:"♦",q:"Ijarah membedakan diri dari jual-beli karena yang berpindah adalah…",a:["Kepemilikan barang","Manfaat barang dalam periode tertentu","Saham perusahaan","Hak atas tanah"],c:1,e:"Ijarah memindahkan penguasaan MANFAAT, kepemilikan tetap pada pemilik."},
+{s:"A",su:"♣",q:"Murabahah diatur dalam Fatwa DSN-MUI nomor…",a:["04/DSN-MUI/IV/2000","01/DSN-MUI/X/2000","10/DSN-MUI/VII/2001","22/DSN-MUI/III/2002"],c:0,e:"Fatwa DSN-MUI No. 04/DSN-MUI/IV/2000 tentang Murabahah."},
+{s:"6",su:"♠",q:"Qardh dalam bank syariah diterapkan pada…",a:["Dana kebajikan & pinjaman talangan tanpa imbalan","Pembiayaan bermargin","Tabungan berbagi hasil","Asuransi"],c:0,e:"Qardh = pinjaman kebajikan; pengembalian tanpa tambahan apa pun."}
+]},
+{name:"Bankir Bayan",icon:"❖",theme:"Materi III-A/B · Perbankan Syariah",hp:110,cards:[
+{s:"4",su:"♦",q:"Menurut materi, fungsi bank syariah meliputi berikut, KECUALI…",a:["Manajer investasi","Spekulan valuta","Investor","Fungsi sosial"],c:1,e:"Fungsi: manajer investasi, investor, jasa layanan, dan fungsi sosial."},
+{s:"5",su:"♠",q:"Bank sentral Republik Indonesia yang mengawasi sistem pembayaran adalah…",a:["Bank Indonesia","OJK","Kemenkeu","LPS"],c:0,e:"BI = bank sentral; OJK mengawasi sektor keuangan; LPS menjamin simpanan."},
+{s:"6",su:"♥",q:"Perbedaan mendasar BUS dan BPRS: BPRS TIDAK boleh…",a:["Menerima simpanan giro & lalu lintas pembayaran","Menyalurkan pembiayaan","Menghimpun tabungan","Memberi bagi hasil"],c:0,e:"BPRS menghimpun tanpa giro dan tidak ikut kliring."},
+{s:"7",su:"♣",q:"Badan Arbitrase Syariah Nasional (BASYARNAS) berfungsi…",a:["Menyelesaikan sengketa ekonomi syariah","Menerbitkan fatwa","Mengatur permodalan bank","Menetapkan suku bunga"],c:0,e:"Arbitrase penyelesaian sengketa pelaku usaha syariah di luar pengadilan."},
+{s:"8",su:"♦",q:"Tugas Dewan Pengawas Syariah (DPS) di bank adalah…",a:["Memastikan kegiatan bank sesuai prinsip syariah","Mengaudit pajak","Menentukan dividen","Rekrutmen direksi"],c:0,e:"DPS mengawasi kepatuhan syariah; berada di bawah nasihat DSN-MUI."},
+{s:"8",su:"♥",q:"Fatwa yang mengikat produk bank syariah di Indonesia diterbitkan oleh…",a:["DSN-MUI","MPR","Bapepam saja","Bulu"],c:0,e:"Dewan Syariah Nasional – MUI menerbitkan fatwa muamalat maliyah."},
+{s:"9",su:"♠",q:"Bank devisa adalah bank yang…",a:["Berhak melakukan transaksi valuta asing & internasional","Khusus kredit ekspor","Hanya menerima setoran devisa","Milik negara asing"],c:0,e:"Izin devisa membuka lalu lintas pembayaran luar negeri."},
+{s:"10",su:"♦",q:"Menurut materi, tujuan utama masyarakat menabung di bank adalah…",a:["Keamanan dana","Bunga maksimal","Bebas pajak","Mendapat pinjaman cepat"],c:0,e:"Keamanan (safety) & kemudahan transaksi adalah motif utama."},
+{s:"J",su:"♠",q:"Dasar hukum utama penyelenggaraan perbankan syariah di Indonesia…",a:["UU No. 21 Tahun 2008","UU No. 7 Tahun 1992","UU No. 10 Tahun 1998","UU No. 1 Tahun 2004"],c:0,e:"UU 21/2008 khusus tentang Perbankan Syariah."},
+{s:"Q",su:"♥",q:"BPRS boleh melakukan penukaran uang asing hanya sebagai…",a:["Kegiatan money changer dengan izin OJK","Bank devisa","Pialang valas","Kantor cabang luar negeri"],c:0,e:"Kegiatan valas dilarang bagi BPRS, kecuali money changer dengan izin."}
+]},
+{name:"Neraca Naga",icon:"⬢",theme:"Materi III-C · Analisa Laporan Keuangan",hp:125,cards:[
+{s:"4",su:"♣",q:"Laporan keuangan bank syariah disusun berdasarkan standar…",a:["PSAK 101 (Standar Akuntansi Syariah)","KUHP","UU Perseroan","IFRS murni"],c:0,e:"PSAK 101 mengatur penyajian laporan keuangan syariah."},
+{s:"6",su:"♥",q:"Definisi aset: sesuatu yang mampu…",a:["Menimbulkan aliran kas positif / manfaat ekonomi","Mencetak uang baru","Mengurangi pajak","Menaikkan gaji"],c:0,e:"Aset = sumber daya dikuasai yang memberi manfaat ekonomi masa depan."},
+{s:"7",su:"♦",q:"Tujuan penyusunan laporan keuangan bank syariah adalah…",a:["Pertanggungjawaban kinerja keuangan kepada stakeholder","Menghitung bonus karyawan","Promosi produk","Menetapkan bunga"],c:0,e:"Laporan disusun sebagai bentuk pertanggungjawaban dalam satu periode."},
+{s:"8",su:"♠",q:"Berikut laporan khas bank syariah berdasarkan PSAK 101…",a:["Laporan sumber & penggunaan dana zakat","Laporan realisasi anggaran pemda","Laporan frekuensi radio","Laporan laba ditahan konvensional"],c:0,e:"PSAK 101: 8 laporan termasuk dana zakat & dana kebajikan (qardhul hasan)."},
+{s:"9",su:"♣",q:"Pembeda laporan keuangan bank syariah vs konvensional terletak pada pos…",a:["Qardhul hasan / dana kebajikan","Bunga deposito","Pendapatan bunga","Gaji direksi"],c:0,e:"Bank syariah punya laporan sumber & penggunaan dana kebajikan."},
+{s:"10",su:"♥",q:"Analisis keuangan bank pada dasarnya menilai dua hal, yaitu…",a:["Prospek (profitabilitas) dan risiko (kemungkinan bangkrut)","Harta dan pajak","Aset dan gaji","Aset tetap saja"],c:0,e:"Prospek dari tingkat keuntungan; risiko dari kemungkinan kesulitan keuangan."},
+{s:"J",su:"♦",q:"Rasio untuk mengukur KEUNTUNGAN bank adalah rasio…",a:["Profitabilitas","Likuiditas","Solvabilitas","Aktivitas"],c:0,e:"ROA/ROE/NIM = profitabilitas."},
+{s:"K",su:"♠",q:"Kemampuan bank membayar kewajiban jangka panjang diukur dengan rasio…",a:["Solvabilitas (mis. CAR)","Likuiditas","Profitabilitas","Effisiensi"],c:0,e:"Solvabilitas = kecukupan aset menutup liabilities."},
+{s:"Q",su:"♥",q:"NPF (Non Performing Financing) mengukur…",a:["Pembiayaan bermasalah / macet","Efisiensi biaya","Setoran nasabah","Likuiditas kas"],c:0,e:"Padanan LDR bermasalah; NPF tinggi = risiko kredit tinggi."},
+{s:"A",su:"♣",q:"CAR (Capital Adequacy Ratio) adalah…",a:["Kecukupan modal terhadap aset tertimbang menurut risiko","Laba dibagi aset","Biaya bagi pendapatan","Dana pihak ketiga dibagi aset"],c:0,e:"CAR = rasio kecukupan modal; POJK umum minimum ±14% (termasuk buffer)."}
+]},
+{name:"Si Juki Statistika",icon:"∑",theme:"Materi II · Metodologi & Pengukuran",hp:135,cards:[
+{s:"3",su:"♠",q:"Metodologi penelitian dapat diartikan sebagai…",a:["Ilmu tentang cara/prosedur sistematis melaksanakan penelitian","Hasil akhir penelitian","Daftar pustaka","Software statistik"],c:0,e:"Metodologi = payung besar cara memperoleh ilmu/penjelasan yang valid."},
+{s:"5",su:"♥",q:"Penelitian kualitatif terutama bertujuan…",a:["Memahami makna & mengeksplorasi fenomena secara mendalam","Menguji hipotesis dengan statistik","Menghitung sampel besar","Generalisasi populasi"],c:0,e:"Kualitatif: induktif, natural setting, data kata & tindakan."},
+{s:"6",su:"♦",q:"Lima pendekatan penelitian kualitatif: naratif, fenomenologi, grounded theory, etnografi, dan…",a:["Studi kasus","Survey","Eksperimen","Analisis regresi"],c:0,e:"5 pendekatan menurut Creswell yang dikutip materi."},
+{s:"7",su:"♣",q:"Sampel adalah…",a:["Bagian dari populasi yang diamati/diteliti","Seluruh anggota populasi","Variabel terikat","Instrumen penelitian"],c:0,e:"Populasi = wilayah generalisasi seluruh subjek; sampel = bagian representatifnya."},
+{s:"8",su:"♠",q:"Data yang diperoleh langsung dari sumber pertama (responden) disebut…",a:["Data primer","Data sekunder","Data tersier","Data valid"],c:0,e:"Primer: wawancara/langsung. Sekunder: dokumen, laporan, pustaka."},
+{s:"8",su:"♦",q:"Berikut yang termasuk teknik pengumpulan data adalah…",a:["Observasi, wawancara, kuesioner, dokumentasi","Regresi, korelasi, ANOVA","Normalitas & heteroskedastisitas","Koding & tabulasi warna"],c:0,e:"Empat teknik utama sesuai Materi II-B."},
+{s:"9",su:"♥",q:"Reliabilitas adalah…",a:["Keandalan/konsistensi hasil pengukuran","Ketepatan alat mengukur yang diukur","Jumlah responden","Rumus statistik"],c:0,e:"Reli = trustworthiness; hasil konsisten bila diukur ulang."},
+{s:"J",su:"♣",q:"Tiga kategori mengukur reliabilitas: stabilitas, ekuivalensi, dan…",a:["Konsistensi internal","Validitas eksternal","Objektivitas","Praktikalitas"],c:0,e:"Stabilitas (tes ulang), ekuivalensi (antar-pengamat/sampel), konsistensi internal (antar-butir)."},
+{s:"Q",su:"♦",q:"Cronbach's Alpha & Kuder-Richardson dipakai untuk mengukur…",a:["Reliabilitas instrumen","Validitas isi","Ukuran sampel","Normalitas data"],c:0,e:"Indeks reliabilitas; alpha ≥ 0,60–0,70 umumnya diterima."},
+{s:"A",su:"♠",q:"Teknik split-half (belah dua) menilai…",a:["Konsistensi internal antar-butir","Stabilitas antar-waktu","Ekuivalensi pengamat","Validitas konstruk"],c:0,e:"Beli instrumendua paruh, korelasikan; untuk alat ukur berbanyak butir serupa."}
+]},
+{name:"UOS Ultraboss",icon:"✺",theme:"Materi IV · Interdisipliner + campuran hardest",hp:160,cards:[
+{s:"6",su:"♠",q:"Pendekatan interdisipliner dalam memecahkan masalah dilakukan dengan…",a:["Meninjau berbagai sudut pandang ilmu serumpun yang relevan secara terpadu","Satu disiplin ilmu saja","Banyak jurnal tanpa kaitan","Menunda sampai data lengkap"],c:0,e:"Definisi persis dari Materi IV."},
+{s:"7",su:"♥",q:"Unity of Science (UOS) UIN Siber adalah model integrasi keilmuan yang memadukan…",a:["Dalil wahyu (bayani) dengan bukti empiris (burhani) & intuisi sah (irfani)","Hanya sains modern","Hanya teks klasik","Ekonomi kapitalis"],c:0,e:"UOS: menautkan naqli–aqli–'ilmi dalam riset & studi skripsi."},
+{s:"8",su:"♦",q:"Tahapan pelarangan riba yang menekankan kezaliman praktik kaum Yahudi ada di QS…",a:["An-Nisa': 160-161","Ar-Rum: 39","Al-Baqarah: 275","Al-Maidah: 90"],c:0,e:"Tahap kedua: dicela karena unsur zalim."},
+{s:"9",su:"♣",q:"Agar uang memberi hasil lebih besar menurut flow concept, uang harus…",a:["Diputar dalam kegiatan investasi riil","Ditimbun dalam lemari","Diperjualbelikan sebagai komoditas","Dikonversikan ke emas saja"],c:0,e:"Semakin cepat berputar di sektor riil, semakin besar hasil."},
+{s:"J",su:"♠",q:"Dalam UU No. 21/2008, kata '…sebagai laba' pada definisi murabahah diubah menjadi…",a:["'…sebagai keuntungan yang disepakati'","'…sebagai margin tetap'","'…sebagai bagi hasil'","'…sebagai ujrah'"],c:0,e:"Adopsi fatwa DSN 04/2000 ke UU dengan redaksi lebih netral."},
+{s:"K",su:"♠",q:"Salam parallel adalah…",a:["Dua akad salam berurutan (bank-nasabah & bank-pemasok) yang diparalelkan","Salam dua tahap tunai","Satu salam tunggal","Gadai ganda"],c:0,e:"Sering dipakai BMT/bank untuk membiayai pesanan tanpa memegang stok."},
+{s:"Q",su:"♦",q:"Sholat tasbih dikerjakan sebanyak…",a:["4 rakaat dengan jumlah tasbih tertentu tiap rakaat","2 rakaat saja","8 rakaat tanpa hitungan","12 rakaat"],c:0,e:"4 rakaat, tiap rakaat 75 kali tasbih (total 300) menurut riwayat yang masyhur."},
+{s:"K",su:"♥",q:"Dalam mudharabah, imbalan yang TIDAK berhak diterima mudharib adalah…",a:["Gaji tetap bulanan","Bagi hasil sesuai nisbah","Penggantian biaya operasional akad","Bonus kinerja dari bagi hasil"],c:0,e:"Mudharib dibayar dengan bagi hasil, bukan upah tetap (ujrah) — kalau upah tetap, berubah jadi ijarah jasa."},
+{s:"A",su:"♥",q:"Kriteria keberhasilan bank syariah berbeda dari konvensional karena selain profit juga mengukur…",a:["Kemaslahatan & kepatuhan syariah","Besar suku bunga","Volume denda","Jumlah cabang saja"],c:0,e:"Dual mandate: untung + maqashid (fungsinya sosial: zakat, dana kebajikan)."},
+{s:"A",su:"♣",q:"Untuk skripsi berpendekatan UOS, mahasiswa dituntut…",a:["Mengaitkan dalil/teori dengan metode riset & isu kontemporer secara utuh","Menyalin teori tanpa analisis","Menghapus bab metodologi","Memilih data yang menguntungkan"],c:0,e:"Formulir penilaian kompre: elaborasi UOS + pemecahan isu update ekonomi/perbankan."}
+]}
+];
+
+/* =========================================================
+   STATE & STORAGE
+   ========================================================= */
+const $=s=>document.querySelector(s);
+const LS="kompreQuest.v1";
+const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let S={unlocked:0,wins:0,cardsAnswered:0,bestCombo:0};
+try{const raw=localStorage.getItem(LS);if(raw)S=Object.assign(S,JSON.parse(raw));}catch(e){}
+function save(){try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}}
+
+let G=null; // game run state per boss
+
+/* =========================================================
+   MAP
+   ========================================================= */
+function renderMap(){
+  const grid=$("#bossGrid");grid.innerHTML="";
+  BOSSES.forEach((b,i)=>{
+    const node=document.createElement("button");
+    const cleared=i<S.unlocked-1 && (S.unlocked>0);
+    const locked=i>=S.unlocked;
+    node.className="bossNode"+(locked?" locked":"")+(cleared&&i<S.unlocked-1?" cleared":"")+(i===S.unlocked-1&&S.unlocked>0?" active":"");
+    node.innerHTML=`<span class="num">BOS ${i+1}</span><span class="bname">${b.name}</span>
+      <span class="theme">${b.theme}</span>
+      <span class="stat">${locked?"terkunci":(cleared?"✝ ditaklukkan":"HP "+b.hp+" · "+b.cards.length+" kartu")}</span>`;
+    if(!locked)node.addEventListener("click",()=>startBoss(i));
+    grid.appendChild(node);
+  });
+  $("#statWins").textContent=(S.wins)+"/"+BOSSES.length;
+  $("#statCombo").textContent="×"+S.bestCombo;
+  $("#statCards").textContent=S.cardsAnswered;
+  $("#map").classList.remove("hidden");
+  $("#arena").classList.add("hidden");
+  $("#endModal").classList.add("hidden");
+}
+$("#resetBtn").addEventListener("click",()=>{
+  if(confirm("Reset semua progres?")){S={unlocked:1,wins:0,cardsAnswered:0,bestCombo:0};save();renderMap();}
+});
+
+/* =========================================================
+   ARENA
+   ========================================================= */
+function startBoss(i){
+  const b=BOSSES[i];
+  G={boss:i,bossName:b.name,bossHp:b.hp,bossMax:b.hp,playerHp:60,playerMax:60,combo:0,maxCombo:0,used:0,busy:false};
+  buildDeck();
+  refillHand();
+  $("#map").classList.add("hidden");
+  $("#arena").classList.remove("hidden");
+  $("#bossIcon").textContent=b.icon;
+  $("#bossName").textContent=b.name;
+  $("#bossTheme").textContent=b.theme;
+  updateHUD();renderHand();
+}
+function buildDeck(){
+  const b=BOSSES[G.boss];
+  G.deck=shuffle(b.cards.map((c,idx)=>({...c,id:idx})));
+  G.hand=[];
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function refillHand(){while(G.hand.length<5&&G.deck.length)G.hand.push(G.deck.pop());}
+
+function updateHUD(){
+  $("#bossFill").style.width=(100*G.bossHp/G.bossMax)+"%";
+  $("#bossLbl").textContent=G.bossHp+" / "+G.bossMax;
+  $("#playerFill").style.width=(100*G.playerHp/G.playerMax)+"%";
+  $("#playerLbl").textContent="♥ "+G.playerHp;
+  $("#deckCount").textContent=G.deck.length+G.hand.length;
+  const tag=$("#comboTag");
+  if(G.combo>=2){tag.textContent="COMBO ×"+G.combo;tag.classList.add("on");}
+  else tag.classList.remove("on");
+}
+function comboMult(){return G.combo>=6?2:G.combo>=3?1.5:1;}
+
+const SUITC={spade:"♠",club:"♣",heart:"♥",diamond:"♦"};
+function suitInfo(s){return {char:s,red:(s==="♥"||s==="♦")};}
+
+function renderHand(){
+  const w=$("#handWrap");w.innerHTML="";
+  G.hand.forEach((c,idx)=>{
+    const si=suitInfo(c.su);
+    const el=document.createElement("button");
+    el.className="card "+(si.red?"red":"black");
+    el.style.marginLeft=idx?"-22px":"0";
+    el.innerHTML=`<span class="corner tl"><span class="r">${c.s}</span><span class="s">${c.su}</span></span>
+      <span class="pip">${c.su}</span>
+      <span class="dmg">DMG ${RANKVAL[c.s]}</span>
+      <span class="corner br"><span class="r">${c.s}</span><span class="s">${c.su}</span></span>`;
+    el.addEventListener("click",()=>{if(!G.busy)askCard(c,el);});
+    w.appendChild(el);
+  });
+}
+
+/* ---------- question modal ---------- */
+let curCard=null,curEl=null;
+function askCard(c,el){
+  curCard=c;curEl=el;G.busy=true;
+  const b=BOSSES[G.boss];
+  $("#qTheme").textContent=`${b.name} · ${c.su} ${c.s} — ${b.theme}`;
+  $("#qText").textContent=c.q;
+  $("#qCardHint").textContent=`Damage ${RANKVAL[c.s]}${comboMult()>1?"  ×"+comboMult()+" combo":""}`;
+  $("#qExplain").textContent="";
+  const opts=$("#qOpts");opts.innerHTML="";
+  c.a.forEach((txt,i)=>{
+    const btn=document.createElement("button");
+    btn.className="opt";btn.textContent=String.fromCharCode(65+i)+". "+txt;
+    btn.addEventListener("click",()=>answer(i,btn));
+    opts.appendChild(btn);
+  });
+  $("#qModal").classList.remove("hidden");
+}
+function answer(i,btn){
+  const c=curCard;
+  opts_lock();
+  const right=i===c.c;
+  const opts=[...$("#qOpts").children];
+  opts.forEach((b,bi)=>b.classList.toggle("correct",bi===c.c));
+  if(!right)btn.classList.add("wrong");
+  $("#qExplain").textContent=c.e;
+  const wait=right?420:1300;
+  setTimeout(()=>{
+    $("#qModal").classList.add("hidden");
+    if(right)attack(c);else counter(c);
+  },wait);
+}
+function opts_lock(){[...$("#qOpts").children].forEach(b=>b.disabled=true);}
+
+function afterResolve(){
+  // discard used card, draw next
+  const idx=G.hand.indexOf(curCard);
+  if(idx>=0)G.hand.splice(idx,1);
+  G.used++;S.cardsAnswered++;save();
+  refillHand();
+  updateHUD();renderHand();
+}
+
+function attack(c){
+  const dmg=Math.round(RANKVAL[c.s]*comboMult());
+  G.combo++;G.maxCombo=Math.max(G.maxCombo,G.combo);
+  if(G.combo>S.bestCombo){S.bestCombo=G.combo;save();}
+  flyCard(curEl,dmg,()=>{
+    G.bossHp=Math.max(0,G.bossHp-dmg);
+    popText("bossZone","-"+dmg,false);
+    shakeEl($("#bossPlate"));
+    updateHUD();
+    afterResolve();
+    checkOutcome();
+  });
+}
+function counter(c){
+  G.combo=0;
+  const dmg=8;
+  G.playerHp=Math.max(0,G.playerHp-dmg);
+  popText("bossZone","NYAWA -"+dmg,true);
+  $("#hurtFlash").classList.add("on");
+  shakeEl($("#tableRow"));
+  setTimeout(()=>$("#hurtFlash").classList.remove("on"),380);
+  updateHUD();
+  afterResolve();
+  checkOutcome();
+}
+function checkOutcome(){
+  if(G.busy===false)return;
+  if(G.bossHp<=0){setTimeout(()=>victory(),550);return;}
+  if(G.playerHp<=0){setTimeout(()=>defeat(),550);return;}
+  // deck + hand kosong tapi boss hidup -> boss heal, reshuffle
+  if(!G.hand.length&&!G.deck.length){
+    G.bossHp=Math.min(G.bossMax,G.bossHp+20);
+    popText("bossZone","BOS HEAL +20",true);
+    buildDeck();refillHand();updateHUD();renderHand();
+    return;
+  }
+  G.busy=false;
+}
+function flyCard(el,dmg,done){
+  if(!el||reduceMotion||!el.getBoundingClientRect){el&&el.remove&&0;done();return;}
+  const r=el.getBoundingClientRect();
+  const bossR=$("#bossPlate").getBoundingClientRect();
+  const flyer=el.cloneNode(true);
+  flyer.classList.add("flyer");
+  flyer.style.left=r.left+"px";flyer.style.top=r.top+"px";
+  flyer.style.width=r.width+"px";flyer.style.height=r.height+"px";
+  document.body.appendChild(flyer);
+  const dx=(bossR.left+bossR.width/2)-(r.left+r.width/2);
+  const dy=(bossR.top+bossR.height/2)-(r.top+r.height/2);
+  const anim=flyer.animate(
+    [{transform:"translate(0,0) rotate(0)"},
+     {transform:`translate(${dx*.5}px,${dy*.5-40}px) rotate(12deg)`,offset:.5},
+     {transform:`translate(${dx}px,${dy}px) rotate(-18deg) scale(.4)`,opacity:.2}],
+    {duration:520,easing:"cubic-bezier(.2,.7,.3,1)"});
+  anim.onfinish=()=>{flyer.remove();done();};
+}
+function popText(zoneId,txt,hurt){
+  const zone=$("#"+zoneId);
+  const p=document.createElement("div");
+  p.className="pop"+(hurt?" dmg-hurt":"");
+  p.textContent=txt;
+  p.style.left=(35+Math.random()*30)+"%";
+  p.style.top=(30+Math.random()*20)+"%";
+  zone.appendChild(p);
+  p.addEventListener("animationend",()=>p.remove());
+}
+function shakeEl(el){if(reduceMotion)return;el.classList.remove("shake");void el.offsetWidth;el.classList.add("shake");}
+
+/* ---------- end states ---------- */
+function victory(){
+  S.wins=Math.max(S.wins,G.boss+1);
+  if(G.boss+1>S.unlocked)S.unlocked=G.boss+1;
+  if(G.boss+1<BOSSES.length)S.unlocked=Math.max(S.unlocked,G.boss+2);
+  G.playerHp=Math.min(G.playerMax,G.playerHp+20);
+  save();
+  const last=G.boss>=BOSSES.length-1;
+  $("#endPanel").classList.remove("lose");
+  $("#endTitle").textContent=last?"LULUS KOMPRE!":"BOS TUMBANG!";
+  $("#endBody").innerHTML=`<b>${BOSSES[G.boss].name}</b> dikalahkan dengan ${G.used} kartu.<br>
+    Max combo ×${G.maxCombo} · Nyawa tersisa ${G.playerHp}/60.<br>
+    ${last?"Semua 8 bos runtuh — kamu siap ujian kompre.":"Heal +20 & bos berikutnya terbuka."}`;
+  $("#endBtn").textContent=last?"Kembali ke Peta":"Lanjut";
+  $("#endBtn").onclick=()=>{$("#endModal").classList.add("hidden");renderMap();};
+  $("#endModal").classList.remove("hidden");
+}
+function defeat(){
+  save();
+  $("#endPanel").classList.add("lose");
+  $("#endTitle").textContent="NYAWA HABIS";
+  $("#endBody").innerHTML=`<b>${BOSSES[G.boss].name}</b> masih berdiri (${G.bossHp} HP sisa).<br>
+    Jangan panik — baca lagi penjelasannya, lalu serang ulang dari bos terakhir ini.`;
+  $("#endBtn").textContent="Coba lagi";
+  $("#endBtn").onclick=()=>{$("#endModal").classList.add("hidden");startBoss(G.boss);};
+  $("#endModal").classList.remove("hidden");
+}
+
+$("#backMap").addEventListener("click",()=>{$("#qModal").classList.add("hidden");renderMap();});
+
+/* ---------- boot ---------- */
+if(!S.unlocked)S.unlocked=1;
+renderMap();
+
+/* debug/test hooks */
+window.KQ={get state(){return G;},bosses:BOSSES,startBoss,
+  answerCorrect(){if(G&&curCard)answer(curCard.c,[...$("#qOpts").children][curCard.c]);},
+  answerWrong(){if(G&&curCard){const wrongIdx=(curCard.c+1)%4;answer(wrongIdx,[...$("#qOpts").children][wrongIdx]);}},
+  openCard(idx){const c=G.hand[idx];askCard(c,$("#handWrap").children[idx]);}
+};
+</script>
+</body>
+</html>
